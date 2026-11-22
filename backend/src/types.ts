@@ -27,13 +27,33 @@ export interface VacancyRow {
   created_at: string;
 }
 
+/** seen — после API-фильтров источника; kept — после titleMatchesQuery */
+export interface AdapterSearchStats {
+  seen: number;
+  kept: number;
+}
+
+export interface AdapterSearchResult {
+  items: NormalizedVacancy[];
+  dropped: NormalizedVacancy[];
+  stats: AdapterSearchStats;
+}
+
 export interface VacancyAdapter {
   source: VacancySource;
-  search: (query: string) => Promise<NormalizedVacancy[]>;
+  search: (query: string) => Promise<AdapterSearchResult>;
+}
+
+export interface ScanSourceStats {
+  source: VacancySource;
+  seen: number;
+  kept: number;
+  dropped: number;
 }
 
 export interface ScanResult {
   added: number;
   updated: number;
   errors: string[];
+  sources: ScanSourceStats[];
 }

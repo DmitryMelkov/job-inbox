@@ -5,22 +5,49 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "prisma generate && tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "playwright:install": "playwright install chromium"
+    "format": "prettier --write \"src/**/*.ts\" \"scripts/**/*.ts\" \"*.{json,mjs,yml}\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"*.{json,mjs,yml}\"",
+    "lint": "eslint \"{src,scripts}/**/*.ts\" --fix",
+    "lint:check": "eslint \"{src,scripts}/**/*.ts\"",
+    "playwright:install": "playwright install chromium",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "db:import-json": "tsx scripts/import-json.ts"
+  },
+  "lint-staged": {
+    "*.{ts,js,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
+    "@prisma/client": "^6.16.1",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "playwright": "^1.55.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.18.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.3.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^16.0.0",
+    "prettier": "^3.4.2",
+    "prisma": "^6.16.1",
     "tsx": "^4.20.4",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.20.0"
   }
 }

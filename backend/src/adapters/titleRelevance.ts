@@ -154,7 +154,7 @@ export function titleMatchesQuery(title: string, query: string): boolean {
   }
 
   const matched = tokens.some((token) =>
-    expandToken(token).some((alias) => normalizedTitle.includes(alias.toLowerCase()))
+    expandToken(token).some((alias) => normalizedTitle.includes(alias.toLowerCase())),
   );
   if (!matched) return false;
 
@@ -173,4 +173,17 @@ export function titleMatchesQuery(title: string, query: string): boolean {
 
 export function titleMatchesAnyQuery(title: string, queries: string[]): boolean {
   return queries.some((q) => titleMatchesQuery(title, q));
+}
+
+export function partitionByTitleQuery<T extends { title: string }>(
+  seen: T[],
+  query: string,
+): { kept: T[]; dropped: T[] } {
+  const kept: T[] = [];
+  const dropped: T[] = [];
+  for (const item of seen) {
+    if (titleMatchesQuery(item.title, query)) kept.push(item);
+    else dropped.push(item);
+  }
+  return { kept, dropped };
 }

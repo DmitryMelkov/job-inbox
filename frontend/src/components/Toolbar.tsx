@@ -83,9 +83,7 @@ export default function Toolbar({
                     variant={ready ? 'filled' : 'outlined'}
                     disabled={busy}
                     onClick={() => onLogin(s)}
-                    icon={
-                      isLogging ? <CircularProgress size={12} color="inherit" /> : undefined
-                    }
+                    icon={isLogging ? <CircularProgress size={12} color="inherit" /> : undefined}
                     sx={{ height: 26, fontWeight: 500 }}
                   />
                 </Tooltip>
@@ -153,6 +151,7 @@ export default function Toolbar({
               <MenuItem value="new">Новые</MenuItem>
               <MenuItem value="applied">Отклики</MenuItem>
               <MenuItem value="hidden">Скрытые</MenuItem>
+              <MenuItem value="dropped">Отрезанные</MenuItem>
             </Select>
           </FormControl>
 

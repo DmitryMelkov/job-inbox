@@ -7,7 +7,20 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint src --fix",
+    "lint:check": "oxlint src",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{json,mjs}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"*.{json,mjs}\""
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "oxlint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -22,6 +35,8 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
+    "oxlint": "^1.14.0",
+    "prettier": "^3.4.2",
     "typescript": "^5.9.2",
     "vite": "^7.1.2"
   }

@@ -8,10 +8,15 @@ const POLL_MS = 2000;
 async function pageLooksLoggedIn(
   source: VacancySource,
   page: Page,
-  context: BrowserContext
+  context: BrowserContext,
 ): Promise<boolean> {
   const url = page.url();
-  const body = (await page.locator('body').innerText().catch(() => '')).toLowerCase();
+  const body = (
+    await page
+      .locator('body')
+      .innerText()
+      .catch(() => '')
+  ).toLowerCase();
   const cookies = await context.cookies().catch(() => []);
   const cookieNames = new Set(cookies.map((c) => c.name.toLowerCase()));
 
@@ -28,7 +33,13 @@ async function pageLooksLoggedIn(
       '[data-qa="mainmenu_negotiations"]',
     ];
     for (const sel of selectors) {
-      if ((await page.locator(sel).count().catch(() => 0)) > 0) return true;
+      if (
+        (await page
+          .locator(sel)
+          .count()
+          .catch(() => 0)) > 0
+      )
+        return true;
     }
 
     if (
@@ -56,7 +67,10 @@ async function pageLooksLoggedIn(
       body.includes('выйти') ||
       body.includes('мой профиль') ||
       body.includes('отклики') ||
-      (await page.locator('a[href*="/my"], a[href*="/logout"]').count().catch(() => 0)) > 0
+      (await page
+        .locator('a[href*="/my"], a[href*="/logout"]')
+        .count()
+        .catch(() => 0)) > 0
     ) {
       return true;
     }
@@ -65,8 +79,10 @@ async function pageLooksLoggedIn(
 
   // getmatch: классической /login нет, сессия через OTP в модалке
   if (
-    (await page.locator('a[href="/api/auth/logout"], a[href*="/api/auth/logout"]').count().catch(() => 0)) >
-    0
+    (await page
+      .locator('a[href="/api/auth/logout"], a[href*="/api/auth/logout"]')
+      .count()
+      .catch(() => 0)) > 0
   ) {
     return true;
   }
@@ -74,7 +90,10 @@ async function pageLooksLoggedIn(
     body.includes('выйти') ||
     body.includes('мой профиль') ||
     body.includes('отклики') ||
-    (await page.locator('a[href*="/applications"], a[href*="/profile"]').count().catch(() => 0)) > 0
+    (await page
+      .locator('a[href*="/applications"], a[href*="/profile"]')
+      .count()
+      .catch(() => 0)) > 0
   ) {
     return true;
   }
@@ -93,7 +112,9 @@ async function pageLooksLoggedIn(
   return Boolean(meOk);
 }
 
-export async function loginWithBrowser(source: VacancySource): Promise<{ ok: true; message: string }> {
+export async function loginWithBrowser(
+  source: VacancySource,
+): Promise<{ ok: true; message: string }> {
   const context = await openPersistentContext(source);
   const page = context.pages()[0] || (await context.newPage());
 
@@ -120,9 +141,9 @@ export async function loginWithBrowser(source: VacancySource): Promise<{ ok: tru
       // если уже ушли на главную после логина — тоже ок
       if (await pageLooksLoggedIn(source, page, context)) {
         // закрепим сессию заходом на home
-        await page.goto(SOURCE_HOME[source], { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(
-          () => undefined
-        );
+        await page
+          .goto(SOURCE_HOME[source], { waitUntil: 'domcontentloaded', timeout: 30000 })
+          .catch(() => undefined);
         await sleep(1500);
         await context.close();
         return {
@@ -141,6 +162,6 @@ export async function loginWithBrowser(source: VacancySource): Promise<{ ok: tru
 
   await context.close().catch(() => undefined);
   throw new Error(
-    `Таймаут логина (${source}): не удалось подтвердить вход за 5 минут. Попробуй ещё раз.`
+    `Таймаут логина (${source}): не удалось подтвердить вход за 5 минут. Попробуй ещё раз.`,
   );
 }

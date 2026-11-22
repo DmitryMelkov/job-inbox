@@ -7,12 +7,19 @@
     "backend"
   ],
   "scripts": {
+    "prepare": "husky",
     "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @job-inbox/backend\" \"npm run dev -w @job-inbox/frontend\"",
     "build": "npm run build -w @job-inbox/backend && npm run build -w @job-inbox/frontend",
     "start": "npm run start -w @job-inbox/backend",
-    "typecheck": "npm run typecheck -w @job-inbox/backend && npm run typecheck -w @job-inbox/frontend"
+    "typecheck": "npm run typecheck -w @job-inbox/backend && npm run typecheck -w @job-inbox/frontend",
+    "lint": "npm run lint:check -w @job-inbox/backend && npm run lint:check -w @job-inbox/frontend",
+    "lint:fix": "npm run lint -w @job-inbox/backend && npm run lint -w @job-inbox/frontend",
+    "format": "npm run format -w @job-inbox/backend && npm run format -w @job-inbox/frontend",
+    "format:check": "npm run format:check -w @job-inbox/backend && npm run format:check -w @job-inbox/frontend"
   },
   "devDependencies": {
-    "concurrently": "^9.2.0"
+    "concurrently": "^9.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2"
   }
 }

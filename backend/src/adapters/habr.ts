@@ -1,5 +1,5 @@
-import type { NormalizedVacancy, VacancyAdapter } from '../types.js';
-import { titleMatchesQuery } from './titleRelevance.js';
+import type { AdapterSearchResult, NormalizedVacancy, VacancyAdapter } from '../types.js';
+import { partitionByTitleQuery } from './titleRelevance.js';
 
 const BASE = 'https://career.habr.com';
 const PER_PAGE = 50;
@@ -66,10 +66,12 @@ function mapItem(item: HabrVacancy): NormalizedVacancy {
 /** Какие s[] слать в API под наш запрос. */
 function specsForQuery(query: string): number[] {
   const q = query.toLowerCase();
-  if (/(fullstack|full-stack|фуллстек|фулстек)/.test(q)) return [SPEC_FULLSTACK];
-  if (/(frontend|front-end|фронт|react|vue|angular|next|javascript|typescript)/.test(q)) {
-    return [SPEC_FRONTEND];
+  // Стек (react/vue/…) может висеть и на frontend, и на fullstack specialty
+  if (/(react|vue|angular|next|javascript|typescript)/.test(q)) {
+    return [SPEC_FRONTEND, SPEC_FULLSTACK];
   }
+  if (/(fullstack|full-stack|фуллстек|фулстек)/.test(q)) return [SPEC_FULLSTACK];
+  if (/(frontend|front-end|фронт)/.test(q)) return [SPEC_FRONTEND];
   return [SPEC_FRONTEND, SPEC_FULLSTACK];
 }
 
@@ -79,11 +81,7 @@ function isFrontOrFullstackDivision(item: HabrVacancy): boolean {
   return hrefs.some((href) => /\/(frontend|fullstack)(\/|$)/i.test(href));
 }
 
-async function fetchHabrPage(
-  query: string,
-  page: number,
-  specId: number
-): Promise<HabrResponse> {
+async function fetchHabrPage(query: string, page: number, specId: number): Promise<HabrResponse> {
   const params = new URLSearchParams({
     // Текст оставляем мягким: специализация режет мусор, q уточняет стек (react и т.п.)
     q: query,
@@ -94,7 +92,7 @@ async function fetchHabrPage(
   });
   params.append('s[]', String(specId));
 
-  const res = await fetch(`${BASE}/api/frontend/vacancies?${params}`, {
+  const res = await fetch(`${BASE}/api/frontend/vacancies?${params.toString()}`, {
     headers: {
       Accept: 'application/json',
       'User-Agent': 'job-inbox/0.1 (local mvp)',
@@ -109,7 +107,7 @@ async function fetchHabrPage(
 }
 
 async function searchHabrBySpec(query: string, specId: number): Promise<NormalizedVacancy[]> {
-  const results: NormalizedVacancy[] = [];
+  const candidates: NormalizedVacancy[] = [];
   let page = 1;
   let totalPages = 1;
 
@@ -119,29 +117,29 @@ async function searchHabrBySpec(query: string, specId: number): Promise<Normaliz
       totalPages = Math.max(1, Number(data.meta?.totalPages || 1));
     }
 
-    const chunk = (data.list ?? [])
-      .filter((item) => item.remoteWork === true)
-      .filter(isFrontOrFullstackDivision)
-      .map(mapItem)
-      .filter((item) => titleMatchesQuery(item.title, query));
-
-    results.push(...chunk);
+    candidates.push(
+      ...(data.list ?? [])
+        .filter((item) => item.remoteWork === true)
+        .filter(isFrontOrFullstackDivision)
+        .map(mapItem),
+    );
 
     if (!data.list?.length) break;
     page += 1;
   }
 
-  return results;
+  return candidates;
 }
 
-async function searchHabr(query: string): Promise<NormalizedVacancy[]> {
+async function searchHabr(query: string): Promise<AdapterSearchResult> {
   const specs = specsForQuery(query);
   const batches = await Promise.all(specs.map((specId) => searchHabrBySpec(query, specId)));
-  const map = new Map<string, NormalizedVacancy>();
+  const seenMap = new Map<string, NormalizedVacancy>();
   for (const item of batches.flat()) {
-    map.set(item.externalId, item);
+    seenMap.set(item.externalId, item);
   }
-  return [...map.values()];
+  const { kept, dropped } = partitionByTitleQuery([...seenMap.values()], query);
+  return { items: kept, dropped, stats: { seen: seenMap.size, kept: kept.length } };
 }
 
 export const habrAdapter: VacancyAdapter = {

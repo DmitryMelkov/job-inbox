@@ -1,0 +1,23 @@
+# Postgres для Job Inbox
+# docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: job-inbox-postgres
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: jobinbox
+      POSTGRES_USER: jobinbox
+      POSTGRES_PASSWORD: jobinbox
+    volumes:
+      - job_inbox_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U jobinbox -d jobinbox']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  job_inbox_pg:

@@ -1,5 +1,5 @@
-import type { NormalizedVacancy, VacancyAdapter } from '../types.js';
-import { titleMatchesQuery } from './titleRelevance.js';
+import type { AdapterSearchResult, NormalizedVacancy, VacancyAdapter } from '../types.js';
+import { partitionByTitleQuery } from './titleRelevance.js';
 
 const BASE = 'https://getmatch.ru';
 const UA =
@@ -35,10 +35,12 @@ interface GetmatchOffersResponse {
 
 function specsForQuery(query: string): string[] {
   const q = query.toLowerCase();
-  if (/(fullstack|full-stack|фуллстек|фулстек)/.test(q)) return [SPEC_FULLSTACK];
-  if (/(frontend|front-end|фронт|react|vue|angular|next|javascript|typescript)/.test(q)) {
-    return [SPEC_FRONTEND];
+  // Стек может быть размечен и как frontend, и как fullstack
+  if (/(react|vue|angular|next|javascript|typescript)/.test(q)) {
+    return [SPEC_FRONTEND, SPEC_FULLSTACK];
   }
+  if (/(fullstack|full-stack|фуллстек|фулстек)/.test(q)) return [SPEC_FULLSTACK];
+  if (/(frontend|front-end|фронт)/.test(q)) return [SPEC_FRONTEND];
   return [SPEC_FRONTEND, SPEC_FULLSTACK];
 }
 
@@ -61,10 +63,7 @@ function mapOffer(offer: GetmatchOffer): NormalizedVacancy {
   };
 }
 
-async function fetchOffersPage(
-  spec: string,
-  offset: number
-): Promise<GetmatchOffersResponse> {
+async function fetchOffersPage(spec: string, offset: number): Promise<GetmatchOffersResponse> {
   const params = new URLSearchParams({
     p: String(Math.floor(offset / LIMIT) + 1),
     offset: String(offset),
@@ -73,7 +72,7 @@ async function fetchOffersPage(
   params.append('sp', spec);
   params.append('l', 'remote');
 
-  const res = await fetch(`${BASE}/api/offers?${params}`, {
+  const res = await fetch(`${BASE}/api/offers?${params.toString()}`, {
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -88,8 +87,8 @@ async function fetchOffersPage(
   return (await res.json()) as GetmatchOffersResponse;
 }
 
-async function searchBySpec(query: string, spec: string): Promise<NormalizedVacancy[]> {
-  const results: NormalizedVacancy[] = [];
+async function searchBySpec(spec: string): Promise<NormalizedVacancy[]> {
+  const candidates: NormalizedVacancy[] = [];
   let offset = 0;
   let total = Infinity;
   let page = 0;
@@ -101,10 +100,7 @@ async function searchBySpec(query: string, spec: string): Promise<NormalizedVaca
     if (offers.length === 0) break;
 
     for (const offer of offers) {
-      const item = mapOffer(offer);
-      if (titleMatchesQuery(item.title, query)) {
-        results.push(item);
-      }
+      candidates.push(mapOffer(offer));
     }
 
     offset += offers.length;
@@ -112,17 +108,18 @@ async function searchBySpec(query: string, spec: string): Promise<NormalizedVaca
     if (offers.length < LIMIT) break;
   }
 
-  return results;
+  return candidates;
 }
 
-async function searchGetmatch(query: string): Promise<NormalizedVacancy[]> {
+async function searchGetmatch(query: string): Promise<AdapterSearchResult> {
   const specs = specsForQuery(query);
-  const batches = await Promise.all(specs.map((spec) => searchBySpec(query, spec)));
-  const map = new Map<string, NormalizedVacancy>();
+  const batches = await Promise.all(specs.map((spec) => searchBySpec(spec)));
+  const seenMap = new Map<string, NormalizedVacancy>();
   for (const item of batches.flat()) {
-    map.set(item.externalId, item);
+    seenMap.set(item.externalId, item);
   }
-  return [...map.values()];
+  const { kept, dropped } = partitionByTitleQuery([...seenMap.values()], query);
+  return { items: kept, dropped, stats: { seen: seenMap.size, kept: kept.length } };
 }
 
 export const getmatchAdapter: VacancyAdapter = {

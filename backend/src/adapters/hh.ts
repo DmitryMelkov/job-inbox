@@ -1,9 +1,12 @@
-import type { NormalizedVacancy, VacancyAdapter } from '../types.js';
-import { titleMatchesQuery } from './titleRelevance.js';
+import type { AdapterSearchResult, NormalizedVacancy, VacancyAdapter } from '../types.js';
+import { partitionByTitleQuery } from './titleRelevance.js';
 
 const UA = 'job-inbox/0.1 (local mvp; personal use)';
 const PER_PAGE = 50;
 const MAX_PAGES = Number(process.env.HH_MAX_PAGES || 20);
+
+/** HH: «Программист, разработчик» — отсекает аналитиков/QA/DevOps на уровне API */
+const ROLE_DEVELOPER = '96';
 
 interface HhVacancy {
   id: string;
@@ -29,8 +32,8 @@ function formatSalary(salary: HhVacancy['salary']): string | null {
   return null;
 }
 
-function mapItem(item: HhVacancy, query: string): NormalizedVacancy | null {
-  const vacancy: NormalizedVacancy = {
+function mapItem(item: HhVacancy): NormalizedVacancy {
+  return {
     source: 'hh',
     externalId: item.id,
     title: item.name,
@@ -39,18 +42,24 @@ function mapItem(item: HhVacancy, query: string): NormalizedVacancy | null {
     salary: formatSalary(item.salary),
     publishedAt: item.published_at || null,
   };
-  return titleMatchesQuery(vacancy.title, query) ? vacancy : null;
 }
 
-async function fetchHhPage(query: string, page: number): Promise<HhSearchResponse> {
+function buildSearchParams(query: string, page: number): URLSearchParams {
   const params = new URLSearchParams({
     text: query,
     per_page: String(PER_PAGE),
     page: String(page),
     schedule: 'remote',
   });
+  // Сужаем выдачу до разработчиков (не аналитики / QA / поддержка)
+  params.append('professional_role', ROLE_DEVELOPER);
+  return params;
+}
 
-  const res = await fetch(`https://api.hh.ru/vacancies?${params}`, {
+async function fetchHhPage(query: string, page: number): Promise<HhSearchResponse> {
+  const params = buildSearchParams(query, page);
+
+  const res = await fetch(`https://api.hh.ru/vacancies?${params.toString()}`, {
     headers: {
       Accept: 'application/json',
       'User-Agent': UA,
@@ -68,8 +77,8 @@ async function fetchHhPage(query: string, page: number): Promise<HhSearchRespons
   return (await res.json()) as HhSearchResponse;
 }
 
-async function searchViaApi(query: string): Promise<NormalizedVacancy[]> {
-  const results: NormalizedVacancy[] = [];
+async function searchViaApi(query: string): Promise<AdapterSearchResult> {
+  const seen: NormalizedVacancy[] = [];
   let page = 0;
   let totalPages = 1;
 
@@ -80,15 +89,15 @@ async function searchViaApi(query: string): Promise<NormalizedVacancy[]> {
     }
 
     for (const item of data.items ?? []) {
-      const mapped = mapItem(item, query);
-      if (mapped) results.push(mapped);
+      seen.push(mapItem(item));
     }
 
     if (!data.items?.length) break;
     page += 1;
   }
 
-  return results;
+  const { kept, dropped } = partitionByTitleQuery(seen, query);
+  return { items: kept, dropped, stats: { seen: seen.length, kept: kept.length } };
 }
 
 function decodeXml(text: string): string {
@@ -101,14 +110,15 @@ function decodeXml(text: string): string {
     .replace(/&#39;/g, "'");
 }
 
-async function searchViaRss(query: string): Promise<NormalizedVacancy[]> {
+async function searchViaRss(query: string): Promise<AdapterSearchResult> {
   const params = new URLSearchParams({
     text: query,
     schedule: 'remote',
     items_on_page: '50',
+    professional_role: ROLE_DEVELOPER,
   });
 
-  const res = await fetch(`https://hh.ru/search/vacancy/rss?${params}`, {
+  const res = await fetch(`https://hh.ru/search/vacancy/rss?${params.toString()}`, {
     headers: {
       Accept: 'application/rss+xml, application/xml, text/xml, */*',
       'User-Agent': UA,
@@ -120,25 +130,24 @@ async function searchViaRss(query: string): Promise<NormalizedVacancy[]> {
   }
 
   const xml = await res.text();
-  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
-  const results: NormalizedVacancy[] = [];
+  const blocks = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
+  const seen: NormalizedVacancy[] = [];
 
-  for (const match of items) {
+  for (const match of blocks) {
     const block = match[1];
     const title = decodeXml((block.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '').trim());
     const link = decodeXml((block.match(/<link>([\s\S]*?)<\/link>/)?.[1] || '').trim());
     const pubDate = decodeXml((block.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || '').trim());
     const description = decodeXml(
-      (block.match(/<description>([\s\S]*?)<\/description>/)?.[1] || '').trim()
+      (block.match(/<description>([\s\S]*?)<\/description>/)?.[1] || '').trim(),
     );
 
     if (!link || !title) continue;
-    if (!titleMatchesQuery(title, query)) continue;
 
     const idMatch = link.match(/vacancy\/(\d+)/);
     const companyMatch = description.match(/компани[яи]:?\s*([^<\n]+)/i);
 
-    results.push({
+    seen.push({
       source: 'hh',
       externalId: idMatch?.[1] || link,
       title,
@@ -149,10 +158,11 @@ async function searchViaRss(query: string): Promise<NormalizedVacancy[]> {
     });
   }
 
-  return results;
+  const { kept, dropped } = partitionByTitleQuery(seen, query);
+  return { items: kept, dropped, stats: { seen: seen.length, kept: kept.length } };
 }
 
-async function searchHh(query: string): Promise<NormalizedVacancy[]> {
+async function searchHh(query: string): Promise<AdapterSearchResult> {
   try {
     return await searchViaApi(query);
   } catch (err) {

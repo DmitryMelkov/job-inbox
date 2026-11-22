@@ -2,12 +2,17 @@
 
 Локальный inbox удалённых вакансий: Habr Career, hh.ru, getmatch.
 
+Архитектура и решения «что не тащим» — [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).  
+Заготовка Postgres — [docs/postgres.md](docs/postgres.md).
+
 ## Структура
 
 ```text
 job-inbox/
   frontend/   # Vite + React + MUI + TanStack Query
   backend/    # Express + адаптеры + Playwright
+  docs/
+  docker-compose.yml  # опциональный Postgres (этап C)
 ```
 
 ## Запуск
@@ -15,22 +20,28 @@ job-inbox/
 ```bash
 cd job-inbox
 npm install
-npm run playwright:install -w @job-inbox/backend
+docker compose up -d
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
+npm run prisma:migrate -w @job-inbox/backend
+npm run playwright:install -w @job-inbox/backend
 npm run dev
 ```
+
+С рабочего стола: ярлык **Job Inbox.bat** → `scripts/start-desktop.bat` (Docker + `npm run dev` + браузер на http://localhost:5173). Окно терминала лучше не закрывать — это процесс приложения.
+
+Опционально перенести старый JSON: `npm run db:import-json -w @job-inbox/backend`
 
 - UI: http://localhost:5173
 - API: http://localhost:3001
 
-Кнопка **Обновить** запускает скан и пишет результат в `backend/data/vacancies.json`.
+**Обновить** запускает скан в фоне (прогресс в UI) и пишет результат в Postgres.
 
 ## Проверка откликов (Playwright)
 
 1. Установи Chromium: `npm run playwright:install -w @job-inbox/backend`
-2. В UI нажми **Войти hh** / **Войти habr** / **Войти getmatch** — откроется отдельное окно Chrome, залогинься вручную (капча/2FA тоже там). Когда вход определится, окно закроется, сессия сохранится в `backend/.auth/{source}`.
-3. Нажми **Проверить отклики** — программа по очереди откроет вакансии (не `applied` / не `hidden`, до 30 шт., с учётом фильтра источника) и если на сайте видно, что ты уже откликался, поставит статус `applied`.
+2. В UI нажми чип **hh** / **habr** / **getmatch** — откроется Chrome, залогинься вручную. Сессия сохранится в `backend/.auth/{source}`.
+3. Нажми **Проверить отклики** — проверка идёт в фоне с прогрессом; при признаке отклика ставится статус `applied`.
 
 Автоотклик не делается — только чтение страницы.
 
@@ -39,15 +50,28 @@ npm run dev
 | Часть | Технологии |
 |---|---|
 | Frontend | React, Vite, MUI, TanStack Query |
-| Backend | Express, TypeScript, JSON-хранилище, Playwright |
+| Backend | Express, TypeScript, Prisma, Playwright |
+| DB | Postgres 16 (Docker Compose) |
 
 ## Источники
 
 | Источник | Как собираем |
 |---|---|
-| Habr Career | frontend JSON API, только remote |
-| hh.ru | API; при 403 — RSS |
-| getmatch | `/api/offers` (специализации + remote) |
+| Habr Career | specialty frontend/fullstack + remote + фильтр title |
+| hh.ru | text + `professional_role=96` (разработчик) + remote + title; при 403 — RSS |
+| getmatch | `/api/offers` (js_frontend / fullstack + remote) + title |
+
+## Lint / format
+
+Как в industrial-telemetry: Prettier + lint, Husky pre-commit через lint-staged.
+
+```bash
+npm run format          # prettier write (backend + frontend)
+npm run lint            # проверка без правок
+npm run lint:fix       # eslint/oxlint --fix
+```
+
+Перед коммитом husky прогоняет lint-staged по staged-файлам в `backend/` и `frontend/`.
 
 ## Production
 

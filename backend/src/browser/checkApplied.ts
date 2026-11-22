@@ -5,7 +5,11 @@ import { sleep } from './session.js';
 export type ApplyCheckResult = 'applied' | 'not_applied' | 'unknown';
 
 async function isVisible(page: Page, locator: string): Promise<boolean> {
-  return page.locator(locator).first().isVisible().catch(() => false);
+  return page
+    .locator(locator)
+    .first()
+    .isVisible()
+    .catch(() => false);
 }
 
 async function waitMarkers(page: Page, selector: string, timeoutMs: number): Promise<void> {
@@ -18,14 +22,16 @@ async function waitMarkers(page: Page, selector: string, timeoutMs: number): Pro
 async function detectHh(page: Page): Promise<ApplyCheckResult> {
   await waitMarkers(
     page,
-    '[data-qa="vacancy-response-link-top"], [data-qa="vacancy-response-link-bottom"], text=Вы откликнулись, text=Откликнуться, text=Отклик другим резюме',
-    3500
+    '[data-qa="vacancy-response-link-top"], [data-qa="vacancy-response-link-bottom"], text=Вы откликнулись, text=Откликнуться, text=Отклик другим резюме, text=Вам отказали, text=Вас пригласили',
+    3500,
   );
 
   if (
     (await isVisible(page, 'text="Вы откликнулись"')) ||
     (await isVisible(page, 'text="Отклик другим резюме"')) ||
-    (await isVisible(page, 'text="Отклик отправлен"'))
+    (await isVisible(page, 'text="Отклик отправлен"')) ||
+    (await isVisible(page, 'text="Вам отказали"')) ||
+    (await isVisible(page, 'text="Вас пригласили"'))
   ) {
     return 'applied';
   }
@@ -101,7 +107,7 @@ async function detectGetmatch(page: Page): Promise<ApplyCheckResult> {
   await waitMarkers(
     page,
     'text=Вы откликнулись на эту вакансию, text=Посмотреть отклик, text=Откликнуться, text=Быстрый отклик',
-    3500
+    3500,
   );
 
   if (
@@ -136,7 +142,7 @@ export async function detectApplied(source: VacancySource, page: Page): Promise<
 export async function checkVacancyApplied(
   source: VacancySource,
   page: Page,
-  url: string
+  url: string,
 ): Promise<ApplyCheckResult> {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });

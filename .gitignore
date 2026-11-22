@@ -15,5 +15,7 @@ frontend/.env
 *.log
 .DS_Store
 .cursor/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 *.tsbuildinfo
