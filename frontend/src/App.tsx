@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -8,10 +8,14 @@ import Snackbar from '@mui/material/Snackbar';
 import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ackAutoscan,
   fetchAuthStatus,
+  fetchAutoscan,
   fetchDroppedVacancies,
+  fetchSettings,
   fetchVacancies,
   loginSource,
+  patchSettings,
   runScan,
   startCheckApplications,
   updateVacancy,
@@ -33,14 +37,24 @@ interface SnackState {
   message: string;
 }
 
+function queriesToList(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((q) => q.trim())
+    .filter(Boolean);
+}
+
 export default function App() {
   const queryClient = useQueryClient();
   const [queries, setQueries] = useState(DEFAULT_QUERIES);
+  const [autoScanEnabled, setAutoScanEnabled] = useState(true);
+  const [settingsReady, setSettingsReady] = useState(false);
   const [source, setSource] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [jobProgress, setJobProgress] = useState<JobRecord | null>(null);
   const [snack, setSnack] = useState<SnackState | null>(null);
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const droppedMode = status === 'dropped';
   const listParams = {
@@ -69,19 +83,148 @@ export default function App() {
     queryFn: fetchAuthStatus,
   });
 
+  const autoscanQuery = useQuery({
+    queryKey: ['autoscan'],
+    queryFn: fetchAutoscan,
+    refetchInterval: 15_000,
+    enabled: settingsReady,
+  });
+
+  // Локальные часы: React Query не ре-рендерит, пока nextAt с API не изменился.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!autoScanEnabled) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, [autoScanEnabled]);
+
+  useEffect(() => {
+    const nextAt = autoscanQuery.data?.nextAt;
+    if (!nextAt || !autoScanEnabled) return;
+    if (new Date(nextAt).getTime() <= nowMs) {
+      void queryClient.invalidateQueries({ queryKey: ['autoscan'] });
+      void queryClient.invalidateQueries({ queryKey: ['vacancies'] });
+    }
+  }, [nowMs, autoscanQuery.data?.nextAt, autoScanEnabled, queryClient]);
+
   const showSnack = useCallback((severity: SnackState['severity'], message: string) => {
     setSnack({ severity, message });
   }, []);
 
+  const lastSeenScanAtRef = useRef<string | null>(null);
+  const manualScanPendingRef = useRef(false);
+  useEffect(() => {
+    const snap = autoscanQuery.data;
+    if (!snap?.lastScanAt) return;
+    if (lastSeenScanAtRef.current === null) {
+      lastSeenScanAtRef.current = snap.lastScanAt;
+      return;
+    }
+    if (snap.lastScanAt === lastSeenScanAtRef.current) return;
+    lastSeenScanAtRef.current = snap.lastScanAt;
+    // Ручной скан уже показывает свой snack — здесь только фоновый автоскан.
+    if (manualScanPendingRef.current) return;
+    const added = snap.lastAdded ?? 0;
+    if (added > 0) {
+      showSnack('success', `Автоскан: +${added} новых`);
+      void queryClient.invalidateQueries({ queryKey: ['vacancies'] });
+    } else {
+      showSnack('info', 'Автоскан: новых вакансий нет');
+    }
+  }, [autoscanQuery.data?.lastScanAt, autoscanQuery.data?.lastAdded, showSnack, queryClient]);
+
+  const ackAndRefresh = useCallback(async () => {
+    try {
+      await ackAutoscan();
+      await queryClient.invalidateQueries({ queryKey: ['vacancies'] });
+      await queryClient.invalidateQueries({ queryKey: ['autoscan'] });
+    } catch {
+      // API ещё не поднялся — тихо.
+    }
+  }, [queryClient]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const settings = await fetchSettings();
+        if (cancelled) return;
+        if (settings.queries.length) {
+          setQueries(settings.queries.join(', '));
+        }
+        setAutoScanEnabled(settings.autoScanEnabled);
+      } catch {
+        // оставим дефолты
+      } finally {
+        if (!cancelled) {
+          setSettingsReady(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!settingsReady) return;
+    void ackAndRefresh();
+    const onFocus = () => {
+      void ackAndRefresh();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [settingsReady, ackAndRefresh]);
+
+  // Синхронизация тогла Авто с треем / другими вкладками.
+  useEffect(() => {
+    if (autoscanQuery.data && typeof autoscanQuery.data.enabled === 'boolean') {
+      setAutoScanEnabled(autoscanQuery.data.enabled);
+    }
+  }, [autoscanQuery.data?.enabled]);
+
+  const handleQueriesChange = useCallback(
+    (value: string) => {
+      setQueries(value);
+      if (persistTimer.current) {
+        clearTimeout(persistTimer.current);
+      }
+      persistTimer.current = setTimeout(() => {
+        const list = queriesToList(value);
+        void patchSettings({ queries: list }).then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['autoscan'] });
+        });
+      }, 400);
+    },
+    [queryClient],
+  );
+
+  const handleAutoScanChange = useCallback(
+    (enabled: boolean) => {
+      setAutoScanEnabled(enabled);
+      void patchSettings({ autoScanEnabled: enabled })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['autoscan'] }))
+        .catch((err) => {
+          showSnack('error', err instanceof Error ? err.message : String(err));
+        });
+    },
+    [queryClient, showSnack],
+  );
+
   const scanMutation = useMutation({
     mutationFn: async (queryList: string[]) => {
+      manualScanPendingRef.current = true;
       setJobProgress(null);
       const job = await waitForJob(() => runScan(queryList), setJobProgress);
       return job;
     },
     onSuccess: async (job) => {
+      manualScanPendingRef.current = false;
       setJobProgress(null);
       await queryClient.invalidateQueries({ queryKey: ['vacancies'] });
+      await queryClient.invalidateQueries({ queryKey: ['autoscan'] });
       const result = job.result as ScanResult | undefined;
       if (!result) {
         showSnack('success', 'Скан завершён');
@@ -100,6 +243,7 @@ export default function App() {
       }
     },
     onError: (err) => {
+      manualScanPendingRef.current = false;
       setJobProgress(null);
       showSnack('error', err instanceof Error ? err.message : String(err));
     },
@@ -159,13 +303,17 @@ export default function App() {
     }) => updateVacancy(id, patch),
     onMutate: async ({ id, patch }) => {
       await queryClient.cancelQueries({ queryKey: ['vacancies'] });
-      const previous = queryClient.getQueriesData<Vacancy[]>({ queryKey: ['vacancies'] });
-      queryClient.setQueriesData<Vacancy[]>({ queryKey: ['vacancies'] }, (old) => {
-        if (!old) return old;
+      type VacancyPage = { items: Vacancy[]; updatedAt: string | null };
+      const previous = queryClient.getQueriesData<VacancyPage>({ queryKey: ['vacancies'] });
+      queryClient.setQueriesData<VacancyPage>({ queryKey: ['vacancies'] }, (old) => {
+        if (!old || !Array.isArray(old.items)) return old;
         if (patch.status === 'hidden' && !listParams.status) {
-          return old.filter((item) => item.id !== id);
+          return { ...old, items: old.items.filter((item) => item.id !== id) };
         }
-        return old.map((item) => (item.id === id ? { ...item, ...patch } : item));
+        return {
+          ...old,
+          items: old.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+        };
       });
       return { previous };
     },
@@ -184,9 +332,13 @@ export default function App() {
         await queryClient.invalidateQueries({ queryKey: ['vacancies'] });
         return;
       }
-      queryClient.setQueriesData<Vacancy[]>({ queryKey: ['vacancies'] }, (old) => {
-        if (!old) return old;
-        return old.map((item) => (item.id === updated.id ? updated : item));
+      type VacancyPage = { items: Vacancy[]; updatedAt: string | null };
+      queryClient.setQueriesData<VacancyPage>({ queryKey: ['vacancies'] }, (old) => {
+        if (!old || !Array.isArray(old.items)) return old;
+        return {
+          ...old,
+          items: old.items.map((item) => (item.id === updated.id ? updated : item)),
+        };
       });
     },
   });
@@ -197,6 +349,15 @@ export default function App() {
       : jobProgress
         ? 10
         : 0;
+
+  const nextScanLabel = (() => {
+    const snap = autoscanQuery.data;
+    if (!snap?.enabled || !snap.nextAt) return null;
+    const ms = new Date(snap.nextAt).getTime() - nowMs;
+    if (ms <= 0) return 'след. скан сейчас…';
+    const mins = Math.max(1, Math.ceil(ms / 60_000));
+    return `след. скан ~${mins}м`;
+  })();
 
   return (
     <Container maxWidth="lg" sx={{ py: 1.5, px: { xs: 1.5, sm: 2 } }}>
@@ -209,15 +370,15 @@ export default function App() {
         checking={checkMutation.isPending}
         loggingIn={loginMutation.isPending ? (loginMutation.variables ?? null) : null}
         authStatus={authQuery.data}
-        onQueriesChange={setQueries}
+        autoScanEnabled={autoScanEnabled}
+        nextScanLabel={nextScanLabel}
+        onQueriesChange={handleQueriesChange}
+        onAutoScanChange={handleAutoScanChange}
         onSourceChange={setSource}
         onStatusChange={setStatus}
         onSearchChange={setSearch}
         onScan={() => {
-          const queryList = queries
-            .split(',')
-            .map((q) => q.trim())
-            .filter(Boolean);
+          const queryList = queriesToList(queries);
           scanMutation.mutate(queryList);
         }}
         onLogin={(s) => loginMutation.mutate(s)}

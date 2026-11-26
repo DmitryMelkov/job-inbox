@@ -6,6 +6,7 @@ import {
   type CheckApplicationsResult,
 } from './applications.js';
 import { runScan } from './scan.js';
+import { recordScanFinished } from './settings.js';
 import type { ScanResult, ScanSourceStats, VacancySource } from './types.js';
 
 export type JobKind = 'scan' | 'applications';
@@ -103,6 +104,11 @@ export function startScanJob(queries: string[]): JobRecord {
         message: formatScanDoneMessage(result),
       };
       touch(job);
+      try {
+        recordScanFinished(cleaned, result.added);
+      } catch (persistErr) {
+        console.warn('[scan] не удалось сохранить settings после скана:', persistErr);
+      }
     } catch (err) {
       job.phase = 'error';
       job.error = err instanceof Error ? err.message : String(err);

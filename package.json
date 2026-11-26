@@ -15,7 +15,8 @@
     "lint": "npm run lint:check -w @job-inbox/backend && npm run lint:check -w @job-inbox/frontend",
     "lint:fix": "npm run lint -w @job-inbox/backend && npm run lint -w @job-inbox/frontend",
     "format": "npm run format -w @job-inbox/backend && npm run format -w @job-inbox/frontend",
-    "format:check": "npm run format:check -w @job-inbox/backend && npm run format:check -w @job-inbox/frontend"
+    "format:check": "npm run format:check -w @job-inbox/backend && npm run format:check -w @job-inbox/frontend",
+    "start:tray": "wscript scripts/start-tray.vbs"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",

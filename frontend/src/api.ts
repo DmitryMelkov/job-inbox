@@ -139,6 +139,59 @@ export async function runScan(queries: string[]): Promise<JobRecord> {
   return data as JobRecord;
 }
 
+export interface AppSettings {
+  queries: string[];
+  autoScanEnabled: boolean;
+  intervalMinutes: number;
+  unreadNewCount: number;
+  lastScanAt: string | null;
+  lastAdded: number;
+}
+
+export interface AutoscanSnapshot {
+  enabled: boolean;
+  intervalMinutes: number;
+  queries: string[];
+  nextAt: string | null;
+  lastScanAt: string | null;
+  lastAdded: number;
+  unreadNewCount: number;
+  busy: boolean;
+}
+
+export async function fetchSettings(): Promise<AppSettings> {
+  const res = await fetch(`${API_URL}/api/settings`);
+  if (!res.ok) throw new Error(`Не удалось загрузить настройки (${res.status})`);
+  return res.json();
+}
+
+export async function patchSettings(patch: {
+  queries?: string[];
+  autoScanEnabled?: boolean;
+  intervalMinutes?: number;
+}): Promise<AppSettings> {
+  const res = await fetch(`${API_URL}/api/settings`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Не удалось сохранить настройки (${res.status})`);
+  return data as AppSettings;
+}
+
+export async function fetchAutoscan(): Promise<AutoscanSnapshot> {
+  const res = await fetch(`${API_URL}/api/autoscan`);
+  if (!res.ok) throw new Error(`Не удалось получить статус автоскана (${res.status})`);
+  return res.json();
+}
+
+export async function ackAutoscan(): Promise<AppSettings> {
+  const res = await fetch(`${API_URL}/api/autoscan/ack`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Не удалось сбросить счётчик (${res.status})`);
+  return res.json();
+}
+
 export type AuthStatus = Record<VacancySource, boolean>;
 
 export interface CheckApplicationsResult {

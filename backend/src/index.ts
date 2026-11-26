@@ -7,9 +7,11 @@ import { isApplicationsBusy } from './applications.js';
 import { loginWithBrowser } from './browser/login.js';
 import { listSessionStatus } from './browser/session.js';
 import { listVacancies, updateVacancy } from './db.js';
+import { getAutoscanSnapshot, rescheduleAutoscan, startAutoscanScheduler } from './autoscan.js';
 import { getJob, isScanBusy, startApplicationsJob, startScanJob } from './jobs.js';
 import { listLastDropped } from './lastDropped.js';
 import { defaultQueries } from './scan.js';
+import { ackUnread, patchSettings, readSettings, type AppSettings } from './settings.js';
 import type { VacancySource, VacancyStatus } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -73,14 +75,13 @@ app.patch('/api/vacancies/:id', async (req, res) => {
   const body = asBody(req.body);
   const status = body.status as VacancyStatus | undefined;
   const opened = body.opened as boolean | undefined;
+  const hasStatus = status !== undefined;
+  const hasOpened = typeof opened === 'boolean';
 
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: 'Некорректный id' });
     return;
   }
-
-  const hasStatus = status !== undefined;
-  const hasOpened = typeof opened === 'boolean';
 
   if (!hasStatus && !hasOpened) {
     res.status(400).json({ error: 'Нужен status и/или opened' });
@@ -107,11 +108,52 @@ app.patch('/api/vacancies/:id', async (req, res) => {
   }
 });
 
+app.get('/api/settings', (_req, res) => {
+  res.json(readSettings());
+});
+
+app.patch('/api/settings', (req, res) => {
+  const body = asBody(req.body);
+  const patch: Partial<AppSettings> = {};
+
+  if (body.queries !== undefined) {
+    patch.queries = readQueries(body);
+  }
+  if (typeof body.autoScanEnabled === 'boolean') {
+    patch.autoScanEnabled = body.autoScanEnabled;
+  }
+  if (body.intervalMinutes !== undefined) {
+    patch.intervalMinutes = Number(body.intervalMinutes);
+  }
+
+  const next = patchSettings(patch);
+  if (body.autoScanEnabled !== undefined || body.intervalMinutes !== undefined) {
+    rescheduleAutoscan();
+  }
+  res.json(next);
+});
+
+app.get('/api/autoscan', (_req, res) => {
+  res.json(getAutoscanSnapshot());
+});
+
+app.post('/api/autoscan/ack', (_req, res) => {
+  res.json(ackUnread());
+});
+
 app.post('/api/scan', (req, res) => {
-  const bodyQueries = readQueries(asBody(req.body));
+  const body = asBody(req.body);
+  let queries: string[];
+  if (body.queries !== undefined) {
+    queries = readQueries(body);
+    patchSettings({ queries });
+  } else {
+    // Трей / пустой body — скан по сохранённым queries.
+    queries = readSettings().queries;
+  }
 
   try {
-    const job = startScanJob(bodyQueries);
+    const job = startScanJob(queries);
     res.status(202).json(job);
   } catch (err) {
     const code = (err as { code?: string }).code;
@@ -191,4 +233,5 @@ app.post('/api/applications/check', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`job-inbox API http://localhost:${PORT}`);
+  startAutoscanScheduler();
 });

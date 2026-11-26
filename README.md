@@ -28,7 +28,8 @@ npm run playwright:install -w @job-inbox/backend
 npm run dev
 ```
 
-С рабочего стола: ярлык **Job Inbox.bat** → `scripts/start-desktop.bat` (Docker + `npm run dev` + браузер на http://localhost:5173). Окно терминала лучше не закрывать — это процесс приложения.
+С рабочего стола: ярлык **Job Inbox** → `scripts/start-tray.vbs` (Docker + `npm run dev` в фоне, иконка в трее, браузер на http://localhost:5173).  
+Меню трея: **Открыть UI** / **Стоп и выход**. Консольный запасной вариант: `scripts/start-desktop.bat` (тоже зовёт трей).
 
 Опционально перенести старый JSON: `npm run db:import-json -w @job-inbox/backend`
 

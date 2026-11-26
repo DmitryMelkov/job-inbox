@@ -95,6 +95,9 @@ export default function VacancyList({
         <Table size="small">
           <TableHead>
             <TableRow>
+              <TableCell align="right" sx={{ py: 0.75, width: 40, color: 'text.secondary', px: 1 }}>
+                #
+              </TableCell>
               <TableCell sx={{ py: 0.75 }}>
                 <TableSortLabel
                   active={sortKey === 'title'}
@@ -127,7 +130,7 @@ export default function VacancyList({
             </TableRow>
           </TableHead>
           <TableBody>
-            {sorted.map((item) => {
+            {sorted.map((item, index) => {
               const opened = Boolean(item.opened);
               const hidden = item.status === 'hidden';
 
@@ -146,6 +149,18 @@ export default function VacancyList({
                     transition: 'opacity 0.15s ease, background-color 0.15s ease',
                   }}
                 >
+                  <TableCell
+                    align="right"
+                    sx={{
+                      py: 0.75,
+                      px: 1,
+                      color: 'text.secondary',
+                      fontVariantNumeric: 'tabular-nums',
+                      userSelect: 'none',
+                    }}
+                  >
+                    {index + 1}
+                  </TableCell>
                   <TableCell>
                     <Stack
                       direction="row"
