@@ -21,7 +21,13 @@ import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import type { AuthStatus, VacancySource } from '../api';
+import {
+  APPLICATION_SOURCES,
+  SOURCE_LABELS,
+  VACANCY_SOURCES,
+  type ApplicationSource,
+  type AuthStatus,
+} from '../api';
 
 interface ToolbarProps {
   queries: string;
@@ -30,7 +36,7 @@ interface ToolbarProps {
   search: string;
   scanning: boolean;
   checking: boolean;
-  loggingIn: VacancySource | null;
+  loggingIn: ApplicationSource | null;
   authStatus?: AuthStatus;
   autoScanEnabled: boolean;
   nextScanLabel: string | null;
@@ -40,11 +46,9 @@ interface ToolbarProps {
   onStatusChange: (value: string) => void;
   onSearchChange: (value: string) => void;
   onScan: () => void;
-  onLogin: (source: VacancySource) => void;
+  onLogin: (source: ApplicationSource) => void;
   onCheckApplications: () => void;
 }
-
-const LOGIN_SOURCES: VacancySource[] = ['hh', 'habr', 'getmatch'];
 
 /** Пресеты для скана (кнопка «Обновить»). */
 const SCAN_PRESETS = ['frontend', 'fullstack', 'react', 'angular', 'vue'] as const;
@@ -147,7 +151,7 @@ export default function Toolbar({
           }}
         >
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center">
-            {LOGIN_SOURCES.map((s) => {
+            {APPLICATION_SOURCES.map((s) => {
               const ready = Boolean(authStatus?.[s]);
               const isLogging = loggingIn === s;
               return (
@@ -175,7 +179,7 @@ export default function Toolbar({
           </Stack>
 
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center">
-            <Tooltip title="Что качать с hh / habr / getmatch при «Обновить»">
+            <Tooltip title="По каким запросам искать вакансии на всех площадках">
               <Button
                 size="small"
                 variant="outlined"
@@ -225,17 +229,25 @@ export default function Toolbar({
             >
               {scanning ? 'Обновляю…' : 'Обновить'}
             </Button>
-            <Button
-              size="small"
-              variant="contained"
-              color="secondary"
-              onClick={onCheckApplications}
-              disabled={busy}
-              startIcon={checking ? <CircularProgress size={14} color="inherit" /> : undefined}
-              sx={{ py: 0.25, px: 1.25, fontSize: 13, minHeight: 30 }}
+            <Tooltip
+              title={
+                source === 'zarplata' ? 'Проверка откликов доступна для hh, habr и getmatch' : ''
+              }
             >
-              {checking ? 'Проверяю…' : 'Проверить отклики'}
-            </Button>
+              <span>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="secondary"
+                  onClick={onCheckApplications}
+                  disabled={busy || source === 'zarplata'}
+                  startIcon={checking ? <CircularProgress size={14} color="inherit" /> : undefined}
+                  sx={{ py: 0.25, px: 1.25, fontSize: 13, minHeight: 30 }}
+                >
+                  {checking ? 'Проверяю…' : 'Проверить отклики'}
+                </Button>
+              </span>
+            </Tooltip>
           </Stack>
         </Box>
 
@@ -272,15 +284,11 @@ export default function Toolbar({
               <MenuItem value="" dense>
                 Все
               </MenuItem>
-              <MenuItem value="habr" dense>
-                habr
-              </MenuItem>
-              <MenuItem value="hh" dense>
-                hh
-              </MenuItem>
-              <MenuItem value="getmatch" dense>
-                getmatch
-              </MenuItem>
+              {VACANCY_SOURCES.map((item) => (
+                <MenuItem key={item} value={item} dense>
+                  {SOURCE_LABELS[item]}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
 

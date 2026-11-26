@@ -1,12 +1,12 @@
 import type { BrowserContext, Page } from 'playwright';
-import type { VacancySource } from '../types.js';
+import type { ApplicationSource } from '../types.js';
 import { openPersistentContext, SOURCE_HOME, SOURCE_LOGIN, sleep } from './session.js';
 
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 const POLL_MS = 2000;
 
 async function pageLooksLoggedIn(
-  source: VacancySource,
+  source: ApplicationSource,
   page: Page,
   context: BrowserContext,
 ): Promise<boolean> {
@@ -113,7 +113,7 @@ async function pageLooksLoggedIn(
 }
 
 export async function loginWithBrowser(
-  source: VacancySource,
+  source: ApplicationSource,
 ): Promise<{ ok: true; message: string }> {
   const context = await openPersistentContext(source);
   const page = context.pages()[0] || (await context.newPage());

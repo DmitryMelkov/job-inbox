@@ -12,7 +12,7 @@ import { getJob, isScanBusy, startApplicationsJob, startScanJob } from './jobs.j
 import { listLastDropped } from './lastDropped.js';
 import { defaultQueries } from './scan.js';
 import { ackUnread, patchSettings, readSettings, type AppSettings } from './settings.js';
-import type { VacancySource, VacancyStatus } from './types.js';
+import { APPLICATION_SOURCES, isApplicationSource, type VacancyStatus } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -20,7 +20,6 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const PORT = Number(process.env.PORT || 3001);
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const STATUSES: VacancyStatus[] = ['new', 'applied', 'hidden'];
-const SOURCES: VacancySource[] = ['hh', 'habr', 'getmatch'];
 
 let loginBusy = false;
 
@@ -181,9 +180,9 @@ app.get('/api/auth/status', (_req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   const body = asBody(req.body);
-  const source = body.source as VacancySource | undefined;
-  if (!source || !SOURCES.includes(source)) {
-    res.status(400).json({ error: 'Нужен source: hh | habr | getmatch' });
+  const source = body.source;
+  if (!isApplicationSource(source)) {
+    res.status(400).json({ error: `Нужен source: ${APPLICATION_SOURCES.join(' | ')}` });
     return;
   }
   if (loginBusy || isApplicationsBusy() || isScanBusy()) {
@@ -211,10 +210,11 @@ app.post('/api/applications/check', (req, res) => {
 
   const body = asBody(req.body);
   const sourceRaw = body.source;
-  const source =
-    typeof sourceRaw === 'string' && SOURCES.includes(sourceRaw as VacancySource)
-      ? (sourceRaw as VacancySource)
-      : undefined;
+  if (sourceRaw !== undefined && !isApplicationSource(sourceRaw)) {
+    res.status(400).json({ error: 'Проверка откликов для этого источника недоступна' });
+    return;
+  }
+  const source = sourceRaw;
   const limit = typeof body.limit === 'number' ? body.limit : undefined;
 
   try {

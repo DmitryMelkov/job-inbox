@@ -1,6 +1,6 @@
 # Job Inbox
 
-Локальный inbox удалённых вакансий: Habr Career, hh.ru, getmatch.
+Локальный inbox удалённых вакансий с Habr Career, hh.ru, getmatch и Зарплаты.ру.
 
 Архитектура и решения «что не тащим» — [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).  
 Заготовка Postgres — [docs/postgres.md](docs/postgres.md).
@@ -40,6 +40,8 @@ npm run dev
 
 ## Проверка откликов (Playwright)
 
+Проверка откликов доступна для hh.ru, Habr Career и getmatch.
+
 1. Установи Chromium: `npm run playwright:install -w @job-inbox/backend`
 2. В UI нажми чип **hh** / **habr** / **getmatch** — откроется Chrome, залогинься вручную. Сессия сохранится в `backend/.auth/{source}`.
 3. Нажми **Проверить отклики** — проверка идёт в фоне с прогрессом; при признаке отклика ставится статус `applied`.
@@ -61,6 +63,7 @@ npm run dev
 | Habr Career | specialty frontend/fullstack + remote + фильтр title |
 | hh.ru | text + `professional_role=96` (разработчик) + remote + title; при 403 — RSS |
 | getmatch | `/api/offers` (js_frontend / fullstack + remote) + title |
+| Зарплата.ру | Публичная RSS (~20 на запрос), remote + `professional_role=96` + title. Каталог пересекается с hh (те же id) — храним отдельно |
 
 ## Lint / format
 

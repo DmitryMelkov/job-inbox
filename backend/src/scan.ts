@@ -2,6 +2,7 @@ import { getmatchAdapter } from './adapters/getmatch.js';
 import { habrAdapter } from './adapters/habr.js';
 import { hhAdapter } from './adapters/hh.js';
 import { titleMatchesAnyQuery } from './adapters/titleRelevance.js';
+import { zarplataAdapter } from './adapters/zarplata.js';
 import { pruneIrrelevantVacancies, upsertVacancies } from './db.js';
 import { setLastDropped } from './lastDropped.js';
 import type {
@@ -12,7 +13,7 @@ import type {
   VacancySource,
 } from './types.js';
 
-const adapters: VacancyAdapter[] = [habrAdapter, hhAdapter, getmatchAdapter];
+const adapters: VacancyAdapter[] = [habrAdapter, hhAdapter, getmatchAdapter, zarplataAdapter];
 
 export interface ScanProgressCallback {
   (current: number, total: number, message: string): void;
@@ -31,6 +32,7 @@ function emptySourceStats(): Record<VacancySource, ScanSourceStats> {
     habr: { source: 'habr', seen: 0, kept: 0, dropped: 0 },
     hh: { source: 'hh', seen: 0, kept: 0, dropped: 0 },
     getmatch: { source: 'getmatch', seen: 0, kept: 0, dropped: 0 },
+    zarplata: { source: 'zarplata', seen: 0, kept: 0, dropped: 0 },
   };
 }
 

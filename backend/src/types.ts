@@ -1,4 +1,12 @@
-export type VacancySource = 'habr' | 'hh' | 'getmatch';
+export const APPLICATION_SOURCES = ['hh', 'habr', 'getmatch'] as const;
+export type ApplicationSource = (typeof APPLICATION_SOURCES)[number];
+
+export const VACANCY_SOURCES = [...APPLICATION_SOURCES, 'zarplata'] as const;
+export type VacancySource = (typeof VACANCY_SOURCES)[number];
+
+export function isApplicationSource(value: unknown): value is ApplicationSource {
+  return APPLICATION_SOURCES.some((source) => source === value);
+}
 
 /** new — со скана; applied — после проверки откликов; hidden — вручную убрана */
 export type VacancyStatus = 'new' | 'applied' | 'hidden';

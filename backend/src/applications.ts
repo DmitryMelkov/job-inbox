@@ -1,10 +1,10 @@
 import { checkVacancyApplied } from './browser/checkApplied.js';
 import { hasSession, openPersistentContext, randomDelay, sleep } from './browser/session.js';
 import { listVacancies, updateVacancy } from './db.js';
-import type { VacancySource } from './types.js';
+import { isApplicationSource, type ApplicationSource, type VacancyRow } from './types.js';
 
 export interface CheckApplicationsOptions {
-  source?: VacancySource;
+  source?: ApplicationSource;
   limit?: number;
   onProgress?: (current: number, total: number, message: string) => void;
 }
@@ -38,7 +38,7 @@ export async function checkApplications(
 
   try {
     const all = (await listVacancies({ source: options.source })).filter(
-      (v) => v.status !== 'hidden',
+      (v): v is VacancyRow & { source: ApplicationSource } => isApplicationSource(v.source),
     );
     const candidates = [
       ...all.filter((v) => v.status !== 'applied'),
@@ -52,7 +52,7 @@ export async function checkApplications(
     const total = candidates.length;
     options.onProgress?.(0, total, 'Подготовка…');
 
-    const bySource = new Map<VacancySource, typeof candidates>();
+    const bySource = new Map<ApplicationSource, typeof candidates>();
     for (const row of candidates) {
       const list = bySource.get(row.source) || [];
       list.push(row);

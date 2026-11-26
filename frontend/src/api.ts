@@ -1,4 +1,16 @@
-export type VacancySource = 'habr' | 'hh' | 'getmatch';
+export const APPLICATION_SOURCES = ['hh', 'habr', 'getmatch'] as const;
+export type ApplicationSource = (typeof APPLICATION_SOURCES)[number];
+
+export const VACANCY_SOURCES = [...APPLICATION_SOURCES, 'zarplata'] as const;
+export type VacancySource = (typeof VACANCY_SOURCES)[number];
+
+export const SOURCE_LABELS: Record<VacancySource, string> = {
+  hh: 'hh',
+  habr: 'habr',
+  getmatch: 'getmatch',
+  zarplata: 'Зарплата.ру',
+};
+
 export type VacancyStatus = 'new' | 'applied' | 'hidden';
 
 export interface Vacancy {
@@ -192,7 +204,7 @@ export async function ackAutoscan(): Promise<AppSettings> {
   return res.json();
 }
 
-export type AuthStatus = Record<VacancySource, boolean>;
+export type AuthStatus = Record<ApplicationSource, boolean>;
 
 export interface CheckApplicationsResult {
   checked: number;
@@ -208,7 +220,7 @@ export async function fetchAuthStatus(): Promise<AuthStatus> {
 }
 
 export async function loginSource(
-  source: VacancySource,
+  source: ApplicationSource,
 ): Promise<{ ok: boolean; message: string }> {
   const res = await fetch(`${API_URL}/api/auth/login`, {
     method: 'POST',
@@ -221,7 +233,7 @@ export async function loginSource(
 }
 
 export async function startCheckApplications(params: {
-  source?: VacancySource;
+  source?: ApplicationSource;
   limit?: number;
 }): Promise<JobRecord> {
   const res = await fetch(`${API_URL}/api/applications/check`, {

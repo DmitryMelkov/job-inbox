@@ -1,4 +1,5 @@
 import type { AdapterSearchResult, NormalizedVacancy, VacancyAdapter } from '../types.js';
+import { decodeXml } from './rss.js';
 import { partitionByTitleQuery } from './titleRelevance.js';
 
 const UA = 'job-inbox/0.1 (local mvp; personal use)';
@@ -98,16 +99,6 @@ async function searchViaApi(query: string): Promise<AdapterSearchResult> {
 
   const { kept, dropped } = partitionByTitleQuery(seen, query);
   return { items: kept, dropped, stats: { seen: seen.length, kept: kept.length } };
-}
-
-function decodeXml(text: string): string {
-  return text
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
 }
 
 async function searchViaRss(query: string): Promise<AdapterSearchResult> {

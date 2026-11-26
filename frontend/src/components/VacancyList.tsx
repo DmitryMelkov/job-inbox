@@ -21,7 +21,7 @@ import TableRow from '@mui/material/TableRow';
 import TableSortLabel from '@mui/material/TableSortLabel';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import type { Vacancy } from '../api';
+import { SOURCE_LABELS, type Vacancy } from '../api';
 
 interface VacancyListProps {
   items: Vacancy[];
@@ -208,7 +208,12 @@ export default function VacancyList({
                   </TableCell>
                   <TableCell>{item.salary || '—'}</TableCell>
                   <TableCell>
-                    <Chip label={item.source} size="small" color="primary" variant="outlined" />
+                    <Chip
+                      label={SOURCE_LABELS[item.source] ?? item.source}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
                   </TableCell>
                   <TableCell>{formatDate(item.published_at || item.created_at)}</TableCell>
                   <TableCell align="right">

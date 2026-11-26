@@ -1,5 +1,5 @@
 import type { Page } from 'playwright';
-import type { VacancySource } from '../types.js';
+import type { ApplicationSource } from '../types.js';
 import { sleep } from './session.js';
 
 export type ApplyCheckResult = 'applied' | 'not_applied' | 'unknown';
@@ -130,7 +130,10 @@ async function detectGetmatch(page: Page): Promise<ApplyCheckResult> {
   return 'unknown';
 }
 
-export async function detectApplied(source: VacancySource, page: Page): Promise<ApplyCheckResult> {
+export async function detectApplied(
+  source: ApplicationSource,
+  page: Page,
+): Promise<ApplyCheckResult> {
   await page.waitForLoadState('domcontentloaded').catch(() => undefined);
   await sleep(250);
 
@@ -140,7 +143,7 @@ export async function detectApplied(source: VacancySource, page: Page): Promise<
 }
 
 export async function checkVacancyApplied(
-  source: VacancySource,
+  source: ApplicationSource,
   page: Page,
   url: string,
 ): Promise<ApplyCheckResult> {

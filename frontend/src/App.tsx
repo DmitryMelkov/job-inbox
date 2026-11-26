@@ -24,7 +24,8 @@ import {
   type JobRecord,
   type ScanResult,
   type Vacancy,
-  type VacancySource,
+  APPLICATION_SOURCES,
+  type ApplicationSource,
   type VacancyStatus,
 } from './api';
 import Toolbar from './components/Toolbar';
@@ -250,7 +251,7 @@ export default function App() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: (s: VacancySource) => loginSource(s),
+    mutationFn: (s: ApplicationSource) => loginSource(s),
     onSuccess: async (result) => {
       showSnack('success', result.message);
       await queryClient.invalidateQueries({ queryKey: ['auth-status'] });
@@ -262,11 +263,15 @@ export default function App() {
 
   const checkMutation = useMutation({
     mutationFn: async () => {
+      const applicationSource = APPLICATION_SOURCES.find((item) => item === source);
+      if (source && !applicationSource) {
+        throw new Error('Проверка откликов для этого источника недоступна');
+      }
       setJobProgress(null);
       return waitForJob(
         () =>
           startCheckApplications({
-            source: source ? (source as VacancySource) : undefined,
+            source: applicationSource,
             limit: 30,
           }),
         setJobProgress,
