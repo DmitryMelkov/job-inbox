@@ -14,9 +14,8 @@
 
 Адаптеры в `backend/src/adapters/` реализуют `VacancyAdapter` и регистрируются в `scan.ts`.
 
-- **Скан:** habr, hh, getmatch, zarplata
-- **Проверка откликов (Playwright):** только `ApplicationSource` — hh, habr, getmatch
-- **hh ↔ Зарплата.ру:** каталог пересекается (часто один `externalId`), но карточки храним отдельно по `(source, externalId)`
+- **Скан + проверка откликов:** habr, hh, getmatch, zarplata (сессии в `backend/.auth/{source}`)
+- **hh ↔ Зарплата.ру:** часто один `externalId`; карточки раздельные, статус `applied` зеркалится
 
 ## Фоновые задачи
 

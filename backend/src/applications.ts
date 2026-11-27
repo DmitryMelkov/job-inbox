@@ -1,6 +1,6 @@
 import { checkVacancyApplied } from './browser/checkApplied.js';
 import { hasSession, openPersistentContext, randomDelay, sleep } from './browser/session.js';
-import { listVacancies, updateVacancy } from './db.js';
+import { listVacancies, updateVacancyWithHhFamilyMirror } from './db.js';
 import { isApplicationSource, type ApplicationSource, type VacancyRow } from './types.js';
 
 export interface CheckApplicationsOptions {
@@ -91,11 +91,11 @@ export async function checkApplications(
             const result = await checkVacancyApplied(source, page, row.url);
             checked += 1;
             if (result === 'applied') {
-              await updateVacancy(row.id, { status: 'applied', opened: true });
+              await updateVacancyWithHhFamilyMirror(row.id, { status: 'applied', opened: true });
               applied += 1;
             } else if (result === 'not_applied') {
               if (row.status === 'applied') {
-                await updateVacancy(row.id, { status: 'new', opened: true });
+                await updateVacancyWithHhFamilyMirror(row.id, { status: 'new', opened: true });
               }
               skipped += 1;
             } else {

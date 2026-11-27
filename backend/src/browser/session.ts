@@ -11,6 +11,7 @@ export const SOURCE_HOME: Record<ApplicationSource, string> = {
   hh: 'https://hh.ru/',
   habr: 'https://career.habr.com/',
   getmatch: 'https://getmatch.ru/vacancies',
+  zarplata: 'https://zarplata.ru/',
 };
 
 export const SOURCE_LOGIN: Record<ApplicationSource, string> = {
@@ -18,6 +19,7 @@ export const SOURCE_LOGIN: Record<ApplicationSource, string> = {
   habr: 'https://career.habr.com/login',
   // У getmatch нет /login (404) — вход через модалку «Войти» на сайте
   getmatch: 'https://getmatch.ru/vacancies',
+  zarplata: 'https://zarplata.ru/account/login',
 };
 
 export function authDir(source: ApplicationSource): string {
@@ -37,6 +39,7 @@ export function listSessionStatus(): Record<ApplicationSource, boolean> {
     hh: hasSession('hh'),
     habr: hasSession('habr'),
     getmatch: hasSession('getmatch'),
+    zarplata: hasSession('zarplata'),
   };
 }
 

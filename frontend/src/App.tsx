@@ -264,9 +264,6 @@ export default function App() {
   const checkMutation = useMutation({
     mutationFn: async () => {
       const applicationSource = APPLICATION_SOURCES.find((item) => item === source);
-      if (source && !applicationSource) {
-        throw new Error('Проверка откликов для этого источника недоступна');
-      }
       setJobProgress(null);
       return waitForJob(
         () =>

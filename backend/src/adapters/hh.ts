@@ -4,7 +4,9 @@ import { partitionByTitleQuery } from './titleRelevance.js';
 
 const UA = 'job-inbox/0.1 (local mvp; personal use)';
 const PER_PAGE = 50;
-const MAX_PAGES = Number(process.env.HH_MAX_PAGES || 20);
+/** 0 = до конца выдачи. У HH API потолок ~2000 результатов на поиск. */
+const MAX_PAGES = Number(process.env.HH_MAX_PAGES || 0);
+const SAFETY_MAX_PAGES = 100;
 
 /** HH: «Программист, разработчик» — отсекает аналитиков/QA/DevOps на уровне API */
 const ROLE_DEVELOPER = '96';
@@ -83,7 +85,8 @@ async function searchViaApi(query: string): Promise<AdapterSearchResult> {
   let page = 0;
   let totalPages = 1;
 
-  while (page < totalPages && page < MAX_PAGES) {
+  const pageLimit = MAX_PAGES > 0 ? MAX_PAGES : SAFETY_MAX_PAGES;
+  while (page < totalPages && page < pageLimit) {
     const data = await fetchHhPage(query, page);
     if (page === 0) {
       totalPages = Math.max(1, Number(data.pages || 1));

@@ -3,7 +3,9 @@ import { partitionByTitleQuery } from './titleRelevance.js';
 
 const BASE = 'https://career.habr.com';
 const PER_PAGE = 50;
-const MAX_PAGES = Number(process.env.HABR_MAX_PAGES || 20);
+/** 0 = до конца выдачи API. */
+const MAX_PAGES = Number(process.env.HABR_MAX_PAGES || 0);
+const SAFETY_MAX_PAGES = 100;
 
 /** Специализации Habr: 3 = frontend, 4 = fullstack */
 const SPEC_FRONTEND = 3;
@@ -111,7 +113,8 @@ async function searchHabrBySpec(query: string, specId: number): Promise<Normaliz
   let page = 1;
   let totalPages = 1;
 
-  while (page <= totalPages && page <= MAX_PAGES) {
+  const pageLimit = MAX_PAGES > 0 ? MAX_PAGES : SAFETY_MAX_PAGES;
+  while (page <= totalPages && page <= pageLimit) {
     const data = await fetchHabrPage(query, page, specId);
     if (page === 1) {
       totalPages = Math.max(1, Number(data.meta?.totalPages || 1));

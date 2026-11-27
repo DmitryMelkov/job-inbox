@@ -5,7 +5,9 @@ const BASE = 'https://getmatch.ru';
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const LIMIT = 50;
-const MAX_PAGES = Number(process.env.GETMATCH_MAX_PAGES || 20);
+/** 0 = до конца выдачи API. */
+const MAX_PAGES = Number(process.env.GETMATCH_MAX_PAGES || 0);
+const SAFETY_MAX_PAGES = 100;
 
 /** Спеки getmatch из /api/specializations */
 const SPEC_FRONTEND = 'js_frontend';
@@ -93,7 +95,8 @@ async function searchBySpec(spec: string): Promise<NormalizedVacancy[]> {
   let total = Infinity;
   let page = 0;
 
-  while (offset < total && page < MAX_PAGES) {
+  const pageLimit = MAX_PAGES > 0 ? MAX_PAGES : SAFETY_MAX_PAGES;
+  while (offset < total && page < pageLimit) {
     const data = await fetchOffersPage(spec, offset);
     total = Number(data.meta?.total ?? 0);
     const offers = data.offers ?? [];

@@ -40,11 +40,12 @@ npm run dev
 
 ## Проверка откликов (Playwright)
 
-Проверка откликов доступна для hh.ru, Habr Career и getmatch.
+Проверка откликов: hh.ru, Habr Career, getmatch и Зарплата.ру.
 
 1. Установи Chromium: `npm run playwright:install -w @job-inbox/backend`
-2. В UI нажми чип **hh** / **habr** / **getmatch** — откроется Chrome, залогинься вручную. Сессия сохранится в `backend/.auth/{source}`.
+2. В UI нажми чип источника — откроется Chrome, залогинься вручную. Сессия сохранится в `backend/.auth/{source}`.
 3. Нажми **Проверить отклики** — проверка идёт в фоне с прогрессом; при признаке отклика ставится статус `applied`.
+4. hh и Зарплата.ру — один контур HeadHunter: статус `applied` синхронизируется у зеркал с тем же id.
 
 Автоотклик не делается — только чтение страницы.
 
@@ -60,10 +61,10 @@ npm run dev
 
 | Источник | Как собираем |
 |---|---|
-| Habr Career | specialty frontend/fullstack + remote + фильтр title |
-| hh.ru | text + `professional_role=96` (разработчик) + remote + title; при 403 — RSS |
-| getmatch | `/api/offers` (js_frontend / fullstack + remote) + title |
-| Зарплата.ру | Публичная RSS (~20 на запрос), remote + `professional_role=96` + title. Каталог пересекается с hh (те же id) — храним отдельно |
+| Habr Career | specialty frontend/fullstack + remote + title; страницы до конца выдачи |
+| hh.ru | text + `professional_role=96` + remote + title; страницы до конца (лимит HH API ~2000); при 403 — RSS |
+| getmatch | `/api/offers` (js_frontend / fullstack + remote) + title; страницы до конца |
+| Зарплата.ру | `/shards/vacancy/search` (remote + role 96 + title) до конца; при сбое — RSS; `applied` зеркалится с hh |
 
 ## Lint / format
 

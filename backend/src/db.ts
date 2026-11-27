@@ -1,6 +1,11 @@
 import type { Vacancy as PrismaVacancy } from '@prisma/client';
 import { prisma } from './prisma.js';
-import type { NormalizedVacancy, VacancyRow, VacancyStatus } from './types.js';
+import {
+  hhFamilyTwin,
+  type NormalizedVacancy,
+  type VacancyRow,
+  type VacancyStatus,
+} from './types.js';
 
 export interface ListFilters {
   status?: string;
@@ -117,6 +122,36 @@ export async function updateVacancy(id: number, patch: VacancyPatch): Promise<Va
   });
 
   return toRow(row);
+}
+
+/**
+ * Обновляет статус и зеркало hh↔zarplata с тем же externalId.
+ * Карточки не склеиваем — только статус отклика.
+ */
+export async function updateVacancyWithHhFamilyMirror(
+  id: number,
+  patch: VacancyPatch,
+): Promise<VacancyRow | null> {
+  const row = await updateVacancy(id, patch);
+  if (!row || patch.status === undefined) return row;
+
+  const twinSource = hhFamilyTwin(row.source);
+  if (!twinSource) return row;
+
+  const twin = await prisma.vacancy.findUnique({
+    where: {
+      source_externalId: { source: twinSource, externalId: row.external_id },
+    },
+    select: { id: true },
+  });
+  if (!twin) return row;
+
+  await updateVacancy(twin.id, {
+    status: patch.status,
+    ...(patch.opened !== undefined ? { opened: patch.opened } : {}),
+  });
+
+  return row;
 }
 
 /** Удаляет нерелевантные; hidden не трогаем. */

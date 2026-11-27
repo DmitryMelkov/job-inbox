@@ -1,11 +1,19 @@
-export const APPLICATION_SOURCES = ['hh', 'habr', 'getmatch'] as const;
-export type ApplicationSource = (typeof APPLICATION_SOURCES)[number];
-
-export const VACANCY_SOURCES = [...APPLICATION_SOURCES, 'zarplata'] as const;
+export const VACANCY_SOURCES = ['hh', 'habr', 'getmatch', 'zarplata'] as const;
 export type VacancySource = (typeof VACANCY_SOURCES)[number];
+
+/** Источники с Playwright-логином и проверкой откликов. */
+export const APPLICATION_SOURCES = VACANCY_SOURCES;
+export type ApplicationSource = VacancySource;
 
 export function isApplicationSource(value: unknown): value is ApplicationSource {
   return APPLICATION_SOURCES.some((source) => source === value);
+}
+
+/** hh и Зарплата.ру — один контур HeadHunter, зеркала по externalId. */
+export function hhFamilyTwin(source: VacancySource): 'hh' | 'zarplata' | null {
+  if (source === 'hh') return 'zarplata';
+  if (source === 'zarplata') return 'hh';
+  return null;
 }
 
 /** new — со скана; applied — после проверки откликов; hidden — вручную убрана */

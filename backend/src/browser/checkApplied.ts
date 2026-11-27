@@ -137,7 +137,7 @@ export async function detectApplied(
   await page.waitForLoadState('domcontentloaded').catch(() => undefined);
   await sleep(250);
 
-  if (source === 'hh') return detectHh(page);
+  if (source === 'hh' || source === 'zarplata') return detectHh(page);
   if (source === 'habr') return detectHabr(page);
   return detectGetmatch(page);
 }

@@ -20,7 +20,8 @@ async function pageLooksLoggedIn(
   const cookies = await context.cookies().catch(() => []);
   const cookieNames = new Set(cookies.map((c) => c.name.toLowerCase()));
 
-  if (source === 'hh') {
+  // hh и Зарплата.ру — один стек HeadHunter (разные домены → разные сессии).
+  if (source === 'hh' || source === 'zarplata') {
     if (/\/account\/login/i.test(url)) return false;
 
     // Явные маркеры шапки соискателя (как на скрине после входа)
@@ -50,7 +51,7 @@ async function pageLooksLoggedIn(
       return true;
     }
 
-    // cookie-сигнал авторизации hh
+    // cookie-сигнал авторизации hh-платформы
     if (cookieNames.has('hhtoken') || cookieNames.has('hhuid')) {
       if (!body.includes('войти как соискатель') && !/\/account\/login/i.test(url)) {
         // на главной после логина обычно есть «Отклики»
@@ -146,12 +147,14 @@ export async function loginWithBrowser(
           .catch(() => undefined);
         await sleep(1500);
         await context.close();
+        const label =
+          source === 'zarplata' ? 'Зарплата.ру' : source === 'getmatch' ? 'getmatch' : source;
         return {
           ok: true,
           message:
             source === 'getmatch'
               ? 'Сессия getmatch сохранена (вход по коду). Теперь нажми «Проверить отклики».'
-              : `Сессия ${source} сохранена. Теперь нажми «Проверить отклики».`,
+              : `Сессия ${label} сохранена. Теперь нажми «Проверить отклики».`,
         };
       }
     } catch {

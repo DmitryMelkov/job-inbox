@@ -154,18 +154,19 @@ export default function Toolbar({
             {APPLICATION_SOURCES.map((s) => {
               const ready = Boolean(authStatus?.[s]);
               const isLogging = loggingIn === s;
+              const label = SOURCE_LABELS[s];
               return (
                 <Tooltip
                   key={s}
                   title={
                     ready
-                      ? `Сессия ${s} сохранена. Клик — войти снова`
-                      : `Войти в ${s} (откроется Chrome)`
+                      ? `Сессия ${label} сохранена. Клик — войти снова`
+                      : `Войти в ${label} (откроется Chrome)`
                   }
                 >
                   <Chip
                     size="small"
-                    label={isLogging ? `${s}…` : s}
+                    label={isLogging ? `${label}…` : label}
                     color={ready ? 'success' : 'default'}
                     variant={ready ? 'filled' : 'outlined'}
                     disabled={busy}
@@ -229,25 +230,17 @@ export default function Toolbar({
             >
               {scanning ? 'Обновляю…' : 'Обновить'}
             </Button>
-            <Tooltip
-              title={
-                source === 'zarplata' ? 'Проверка откликов доступна для hh, habr и getmatch' : ''
-              }
+            <Button
+              size="small"
+              variant="contained"
+              color="secondary"
+              onClick={onCheckApplications}
+              disabled={busy}
+              startIcon={checking ? <CircularProgress size={14} color="inherit" /> : undefined}
+              sx={{ py: 0.25, px: 1.25, fontSize: 13, minHeight: 30 }}
             >
-              <span>
-                <Button
-                  size="small"
-                  variant="contained"
-                  color="secondary"
-                  onClick={onCheckApplications}
-                  disabled={busy || source === 'zarplata'}
-                  startIcon={checking ? <CircularProgress size={14} color="inherit" /> : undefined}
-                  sx={{ py: 0.25, px: 1.25, fontSize: 13, minHeight: 30 }}
-                >
-                  {checking ? 'Проверяю…' : 'Проверить отклики'}
-                </Button>
-              </span>
-            </Tooltip>
+              {checking ? 'Проверяю…' : 'Проверить отклики'}
+            </Button>
           </Stack>
         </Box>
 
